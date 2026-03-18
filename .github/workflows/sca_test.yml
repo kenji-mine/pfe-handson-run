@@ -21,18 +21,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Trivy directly
+      - name: Install Trivy (Linux 64bit)
         run: |
-          # アクションを使わず、直接バイナリをダウンロードしてインストール
-          wget https://github.com/aquasecurity/trivy/releases/download/v0.50.1/trivy_0.50.1_Linux-64bit.deb
-          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+          # バージョンを 0.50.1 に固定してダウンロード
+          VERSION="0.50.1"
+          wget https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_Linux-64bit.tar.gz
+          tar zxvf trivy_${VERSION}_Linux-64bit.tar.gz
+          # 実行パスの通っている場所に移動
+          sudo mv trivy /usr/local/bin/
+          # バージョン確認（これでインストール成功を確認）
+          trivy --version
 
-      - name: Run Scan Command
+      - name: Run Trivy Scan
+        # 以前のステップで生成された env を使用
         run: |
-          # 直接コマンドを叩く
-          trivy sbom --format json --output trivy-results.json ${{ env.SBOM_PATH }}
+          trivy sbom --format json --output trivy-results.json --severity "${SEVERITY}" --ignore-unfixed "${SBOM_PATH}"
 
-      - name: Check Results
-        run: |
-          ls -l trivy-results.json
-          cat trivy-results.json | jq .[0:10] # 先頭だけ確認
+      - name: Summarize and Create Issue
+        # ここから先は、以前作成した jq を使った集計と gh issue のステップを繋げてください
+        if: success()
+        run: echo "Scan success, processing results..."
