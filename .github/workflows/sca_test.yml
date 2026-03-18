@@ -1,0 +1,142 @@
+name: Trivy SBOM scan (CycloneDX)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *" # 毎月1日 01:00 JST 相当（GitHub ActionsのcronはUTC基準） cronは5つのフィールド（分、時、日、月、曜日）で構成
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: trivy-sbom-scan-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest  # CentOS runner に付けるラベル想定
+    env:
+      SBOM_PATH: sbom/sbom.json
+      SEVERITY: "CRITICAL,HIGH"
+      ISSUE_LABELS: "security,trivy,sbom"
+      ISSUE_TITLE_PREFIX: "[Trivy][SBOM]"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # SBOMが無いなら「何もしない」で正常終了（要件どおり）
+      - name: Skip if SBOM does not exist
+        id: gate
+        shell: bash
+        run: |
+          if [ ! -f "${SBOM_PATH}" ]; then
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "SBOM not found: ${SBOM_PATH}. Skip scan."
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "SBOM found: ${SBOM_PATH}. Continue."
+          fi
+
+      # Trivy sbom スキャン（Trivy Actionを使用）
+      - name: Run Trivy SBOM scan (JSON output)
+        if: ${{ steps.gate.outputs.found == 'true' }}
+        id: trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: "sbom"
+          scan-ref: "${{ env.SBOM_PATH }}"
+          format: "json"
+          output: "trivy-results.json"
+          severity: "${{ env.SEVERITY }}"
+          ignore-unfixed: true
+          exit-code: "0"   # ジョブは落とさず、後段で検出判定→Issue化
+
+      - name: Summarize findings
+        if: ${{ steps.gate.outputs.found == 'true' }}
+        id: summary
+        shell: bash
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "jq not found. Please install jq on the runner (CentOS)."
+            exit 3
+          fi
+
+          COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-results.json)
+          echo "count=${COUNT}" >> $GITHUB_OUTPUT
+
+          jq -r '
+            def safe(x): (x // "" | tostring);
+            [
+              "### Trivy detected vulnerabilities (from CycloneDX SBOM)",
+              "",
+              "- SBOM: `'"${SBOM_PATH}"'`",
+              "- Severity filter: `'"${SEVERITY}"'`",
+              "",
+              "| Severity | Pkg | Installed | Fixed | CVE | Title |",
+              "|---|---|---:|---:|---|---|",
+              (
+                .Results[]?.Vulnerabilities[]? |
+                select(.Severity == "CRITICAL" or .Severity == "HIGH") |
+                [
+                  safe(.Severity),
+                  safe(.PkgName),
+                  safe(.InstalledVersion),
+                  safe(.FixedVersion),
+                  safe(.VulnerabilityID),
+                  safe(.Title)
+                ] | @tsv
+              )
+            ] | .[0:7] + (
+              .[7:] | map(split("\t") | "| \(.[0]) | \(.[1]) | \(.[2]) | \(.[3]) | \(.[4]) | \(.[5]) |") | .[0:30]
+            ) | join("\n")
+          ' trivy-results.json > trivy-summary.md
+
+      - name: Upload artifacts
+        if: ${{ steps.gate.outputs.found == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sbom-scan
+          path: |
+            trivy-results.json
+            trivy-summary.md
+
+      # Issue起票（GITHUB_TOKENで作成。issues: write 権限が必要）
+      - name: Create or update issue if findings exist
+        if: ${{ steps.gate.outputs.found == 'true' && steps.summary.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "gh (GitHub CLI) not found. Please install gh on the runner (CentOS)."
+            exit 4
+          fi
+
+          TITLE="${ISSUE_TITLE_PREFIX} ${SEVERITY} found in ${SBOM_PATH}"
+          BODY=$(cat << EOF
+          ## Summary
+          Trivy found vulnerabilities from CycloneDX SBOM scan.
+
+          - Repository: ${{ github.repository }}
+          - Branch: ${{ github.ref_name }}
+          - Commit: ${{ github.sha }}
+          - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          ## Details
+          EOF
+          )
+
+          EXISTING=$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number' || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "Update existing issue #$EXISTING"
+            gh issue comment "$EXISTING" --body "$BODY"$'\n\n'$(cat trivy-summary.md)
+          else
+            echo "Create new issue"
+            gh issue create \
+              --title "$TITLE" \
+              --body "$BODY"$'\n\n'$(cat trivy-summary.md) \
+              --label "${ISSUE_LABELS}"
+          fi
