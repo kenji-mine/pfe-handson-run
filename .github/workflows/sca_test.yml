@@ -44,7 +44,7 @@ jobs:
       - name: Run Trivy SBOM scan (JSON output)
         if: ${{ steps.gate.outputs.found == 'true' }}
         id: trivy
-        uses: aquasecurity/trivy-action@0.34.1# バージョンを安定版に指定
+        uses: aquasecurity/trivy-action@0.34.1  # バージョンを安定版に指定
         with:
           scan-type: "sbom"
           scan-ref: "${{ env.SBOM_PATH }}"
