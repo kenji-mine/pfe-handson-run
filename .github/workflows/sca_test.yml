@@ -40,11 +40,11 @@ jobs:
           fi
 
       # --- ここにあった手動インストールのステップを削除しました ---
-
       - name: Run Trivy SBOM scan (JSON output)
         if: ${{ steps.gate.outputs.found == 'true' }}
         id: trivy
-        uses: aquasecurity/trivy-action@v0.34.1  # バージョンを安定版に指定
+        # 'v' を付けない '0.29.0' を使用します
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           scan-type: "sbom"
           scan-ref: "${{ env.SBOM_PATH }}"
@@ -53,7 +53,7 @@ jobs:
           severity: "${{ env.SEVERITY }}"
           ignore-unfixed: true
           exit-code: "0"
-
+          
       - name: Summarize findings
         if: ${{ steps.gate.outputs.found == 'true' }}
         id: summary
