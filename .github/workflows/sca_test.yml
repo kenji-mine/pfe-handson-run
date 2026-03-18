@@ -21,37 +21,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Trivy (Binary direct)
-        run: |
-          # 確実に存在するlinux-64bit版の直リンクを使用 (linuxは小文字)
-          VERSION="0.50.1"
-          wget -q https://github.com/aquasecurity/trivy/releases/download/v${VERSION}/trivy_${VERSION}_linux-64bit.tar.gz
-          
-          # 展開して実行ファイルを取り出す
-          tar xzf trivy_${VERSION}_linux-64bit.tar.gz
-          
-          # 実行権限を付けてパスの通る場所に移動（sudo不要な場所）
-          chmod +x trivy
-          mkdir -p $HOME/.local/bin
-          mv trivy $HOME/.local/bin/
-          
-          # パスを通す
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          
-          # インストール確認
-          $HOME/.local/bin/trivy version
+      # URL を指定せず、公式のセットアップアクションに任せます
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
+        with:
+          cache: true
 
       - name: Run Trivy Scan
         shell: bash
         run: |
+          # setup-trivy を使うと、パスが自動で通ります
           trivy sbom --format json --output trivy-results.json --severity "${SEVERITY}" --ignore-unfixed --exit-code 0 "${SBOM_PATH}"
 
       - name: Check Results
         run: |
           if [ -f trivy-results.json ]; then
             echo "Success: trivy-results.json created."
-            ls -lh trivy-results.json
           else
-            echo "Error: trivy-results.json not found."
+            echo "Error: Scan failed or file not found."
             exit 1
           fi
