@@ -1,8 +1,6 @@
-name: Trivy SBOM scan (CycloneDX)
+name: Clean Trivy Scan V3
 
 on:
-  schedule:
-    - cron: "0 16 1 * *" 
   workflow_dispatch:
 
 permissions:
@@ -23,31 +21,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Skip if SBOM does not exist
-        id: gate
-        shell: bash
+      - name: Install Trivy directly
         run: |
-          if [ ! -f "${SBOM_PATH}" ]; then
-            echo "found=false" >> $GITHUB_OUTPUT
-          else
-            echo "found=true" >> $GITHUB_OUTPUT
-          fi
+          # アクションを使わず、直接バイナリをダウンロードしてインストール
+          wget https://github.com/aquasecurity/trivy/releases/download/v0.50.1/trivy_0.50.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
 
-      - name: Run Trivy SBOM scan
-        if: ${{ steps.gate.outputs.found == 'true' }}
-        uses: aquasecurity/trivy-action@0.29.0
-        with:
-          scan-type: "sbom"
-          scan-ref: "${{ env.SBOM_PATH }}"
-          format: "json"
-          output: "trivy-results.json"
-          severity: "${{ env.SEVERITY }}"
-          exit-code: "0"
-
-      - name: Create issue
-        if: ${{ steps.gate.outputs.found == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Scan Command
         run: |
-          # ここに Issue 作成ロジック（前述）
-          echo "Scan completed."
+          # 直接コマンドを叩く
+          trivy sbom --format json --output trivy-results.json ${{ env.SBOM_PATH }}
+
+      - name: Check Results
+        run: |
+          ls -l trivy-results.json
+          cat trivy-results.json | jq .[0:10] # 先頭だけ確認
