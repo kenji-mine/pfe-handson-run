@@ -73,15 +73,27 @@ jobs:
           GH_TOKEN: ${{ secrets.SUMMARY_REPO_TOKEN }} # 集計リポジトリへの書込権限を持つPAT
         run: |
           # 集計リポジトリを一時的にcloneしてファイルを置いてPushする
+          # 1. クローン (ディレクトリ名は test_dashboard になる)
           git clone https://x-access-token:${GH_TOKEN}@github.com/kenji-mine/test_dashboard.git
-          cp ${{ github.event.repository.name }}.json test_dashboard/summary-repo/data/
-          cd summary-repo
+          # 2. クローンしたディレクトリの中へ移動
+          cd test_dashboard
+          # 3. 既存のディレクトリ summary-repo/data/ の存在を確認し、なければ作成
+          mkdir -p summary-repo/data/   
+          # 4. JSONファイルをコピー (元の場所は1つ上の階層なので ../ を指定)
+          cp ../${{ github.event.repository.name }}.json summary-repo/data/
+          # 5. Git 設定
           git config user.name "Trivy Bot"
           git config user.email "trivy-bot@example.com"
-          git add data/*.json
-          git commit -m "Update scan result for ${{ github.event.repository.name }}"
-          git push
-
+          # 6. コピーしたファイルをステージング
+          git add summary-repo/data/pfe-handson-run.json
+          # 7. 変更がある場合のみコミット・プッシュ
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update scan result for pfe-handson-run in summary-repo/data"
+            git push
+          fi
+          
       - name: Create or update issue
         if: steps.summary.outputs.count != '0'
         env:
