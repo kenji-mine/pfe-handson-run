@@ -74,7 +74,7 @@ jobs:
         run: |
           # 集計リポジトリを一時的にcloneしてファイルを置いてPushする
           git clone https://x-access-token:${GH_TOKEN}@github.com/kenji-mine/test_dashboard.git
-          cp ${{ github.event.repository.name }}.json summary-repo/data/
+          cp ${{ github.event.repository.name }}.json test_dashboard/summary-repo/data/
           cd summary-repo
           git config user.name "Trivy Bot"
           git config user.email "trivy-bot@example.com"
