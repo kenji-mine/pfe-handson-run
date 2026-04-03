@@ -73,7 +73,7 @@ jobs:
           GH_TOKEN: ${{ secrets.SUMMARY_REPO_TOKEN }} # 集計リポジトリへの書込権限を持つPAT
         run: |
           # 集計リポジトリを一時的にcloneしてファイルを置いてPushする
-          git clone https://x-access-token:${GH_TOKEN}@kenji-mine/test_dashboard.git
+          git clone https://x-access-token:${GH_TOKEN}@github.com/kenji-mine/test_dashboard.git
           cp ${{ github.event.repository.name }}.json summary-repo/data/
           cd summary-repo
           git config user.name "Trivy Bot"
