@@ -85,7 +85,7 @@ jobs:
           git config user.name "Trivy Bot"
           git config user.email "trivy-bot@example.com"
           # 6. コピーしたファイルをステージング
-          git add summary-repo/data/pfe-handson-run.json
+          git add summary-repo/data/${{ github.event.repository.name }}.json
           # 7. 変更がある場合のみコミット・プッシュ
           if git diff --cached --quiet; then
             echo "No changes to commit"
