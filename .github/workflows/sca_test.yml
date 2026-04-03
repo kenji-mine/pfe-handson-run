@@ -31,14 +31,14 @@ jobs:
         shell: bash
         run: |
           # setup-trivy を使うと、パスが自動で通ります
-          trivy sbom --format json --output trivy-results.json --severity "${SEVERITY}" --ignore-unfixed --exit-code 0 "${SBOM_PATH}"
+          trivy sbom --format json --output ${{ github.event.repository.name }}.json --severity "${SEVERITY}" --ignore-unfixed --exit-code 0 "${SBOM_PATH}"
 
       - name: Summarize findings
         id: summary
         shell: bash
         run: |
           # 脆弱性数をカウント
-          COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' trivy-results.json)
+          COUNT=$(jq '[.Results[]?.Vulnerabilities[]?] | length' ${{ github.event.repository.name }}.json)
           echo "count=${COUNT}" >> $GITHUB_OUTPUT
 
           # 結果をMarkdownテーブル化
@@ -66,7 +66,7 @@ jobs:
             ] | .[0:7] + (
               .[7:] | map(split("\t") | "| \(.[0]) | \(.[1]) | \(.[2]) | \(.[3]) | \(.[4]) | \(.[5]) |") | .[0:30]
             ) | join("\n")
-          ' trivy-results.json > trivy-summary.md
+          ' ${{ github.event.repository.name }}.json > trivy-summary.md
           
       - name: Send result to Summary Repo
         env:
@@ -113,8 +113,8 @@ jobs:
 
       - name: Check Results
         run: |
-          if [ -f trivy-results.json ]; then
-            echo "Success: trivy-results.json created."
+          if [ -f ${{ github.event.repository.name }}.json ]; then
+            echo "Success: ${{ github.event.repository.name }}.json created."
           else
             echo "Error: Scan failed or file not found."
             exit 1
