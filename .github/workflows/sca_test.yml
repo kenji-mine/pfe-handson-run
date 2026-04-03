@@ -67,6 +67,20 @@ jobs:
               .[7:] | map(split("\t") | "| \(.[0]) | \(.[1]) | \(.[2]) | \(.[3]) | \(.[4]) | \(.[5]) |") | .[0:30]
             ) | join("\n")
           ' trivy-results.json > trivy-summary.md
+          
+      - name: Send result to Summary Repo
+        env:
+          GH_TOKEN: ${{ secrets.SUMMARY_REPO_TOKEN }} # 集計リポジトリへの書込権限を持つPAT
+        run: |
+          # 集計リポジトリを一時的にcloneしてファイルを置いてPushする
+          git clone https://x-access-token:${GH_TOKEN}@kenji-mine/test_dashboard.git
+          cp ${{ github.event.repository.name }}.json summary-repo/data/
+          cd summary-repo
+          git config user.name "Trivy Bot"
+          git config user.email "trivy-bot@example.com"
+          git add data/*.json
+          git commit -m "Update scan result for ${{ github.event.repository.name }}"
+          git push
 
       - name: Create or update issue
         if: steps.summary.outputs.count != '0'
