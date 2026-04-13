@@ -4,34 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  generate-token:
-    runs-on: ubuntu-latest
-    # 【1】ジョブレベルの outputs 定義を「steps」の ID と正確に合わせる
-    outputs:
-      app_token: ${{ steps.gen_token_step.outputs.token }}
-    steps:
-      - name: Generate GitHub App Token
-        # 【2】ここにつける ID が、上の outputs の参照先になります
-        id: gen_token_step
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: kenji-mine
-          repositories: "test_dashboard"
-
-      # ジョブ内での確認（ここが 0 以外になれば生成自体は成功）
-      - name: Check step output
-        run: echo "Test Step output length is ${#TOKEN}"
-        env:
-          TOKEN: ${{ steps.gen_token_step.outputs.token }}
-
   call-trivy:
-    # 【3】前のジョブの結果を使うために必須
-    needs: generate-token 
     uses: kenji-mine/test_dashboard/.github/workflows/trivy-template.yml@main
     with:
       sbom_path: 'sbom/sbom.json'
-    secrets:
-      # 【4】needs.[ジョブID].outputs.[ジョブレベルの出力名] を指定
-      SUMMARY_REPO_TOKEN: ${{ needs.generate-token.outputs.app_token }}
+    secrets: inherit
