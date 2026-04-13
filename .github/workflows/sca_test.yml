@@ -22,7 +22,7 @@ jobs:
 
       # ジョブ内での確認（ここが 0 以外になれば生成自体は成功）
       - name: Check step output
-        run: echo "Step output length is ${#TOKEN}"
+        run: echo "Test Step output length is ${#TOKEN}"
         env:
           TOKEN: ${{ steps.gen_token_step.outputs.token }}
 
