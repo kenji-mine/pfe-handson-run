@@ -4,9 +4,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  generate-token:
+    runs-on: ubuntu-latest
+    outputs:
+      app_token: ${{ steps.app-token.outputs.token }}
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
   call-trivy:
+    needs: generate-token
     uses: kenji-mine/test_dashboard/.github/workflows/trivy-template.yml@main
     with:
       sbom_path: 'sbom/sbom.json'
     secrets:
-      SUMMARY_REPO_TOKEN: ${{ secrets.SUMMARY_REPO_TOKEN }}
+      SUMMARY_REPO_TOKEN: ${{ needs.generate-token.outputs.app_token }}
