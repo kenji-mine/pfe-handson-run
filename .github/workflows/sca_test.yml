@@ -25,4 +25,4 @@ jobs:
     with:
       sbom_path: 'sbom/sbom.json'
     secrets:
-      SUMMARY_REPO_TOKEN: ${{ needs.generate-token.outputs.app_token }}
+      SUMMARY_REPO_TOKEN2: ${{ needs.generate-token.outputs.app_token }}
