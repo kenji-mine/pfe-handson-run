@@ -19,11 +19,32 @@ jobs:
           owner: kenji-mine
           repositories: "test_dashboard"
 
+      # 生成直後のチェック
+      - name: Check generated token length
+        run: |
+          echo "Generated token length is ${#TOKEN}"
+        env:
+          TOKEN: ${{ steps.gen-token-step.outputs.token }}
+
   call-trivy:
-    needs: generate-token # ← これが必須
+    needs: generate-token
+    runs-on: ubuntu-latest # デバッグ用に一時的に定義
+    steps:
+      # テンプレートを呼び出す前に、このジョブで受け取れているか確認
+      - name: Check received token length from outputs
+        run: |
+          echo "Received token length is ${#TOKEN}"
+          if [ "${#TOKEN}" -eq 0 ]; then
+            echo "Error: Token did not pass through outputs!"
+            exit 1
+          fi
+        env:
+          TOKEN: ${{ needs.generate-token.outputs.app_token }}
+  # 実際のテンプレート呼び出し
+  execute-trivy:
+    needs: generate-token
     uses: kenji-mine/test_dashboard/.github/workflows/trivy-template.yml@main
     with:
       sbom_path: 'sbom/sbom.json'
     secrets:
-      # 【最重要】needs.[ジョブ名].outputs.[outputsで定義した名前]
       SUMMARY_REPO_TOKEN: ${{ needs.generate-token.outputs.app_token }}
