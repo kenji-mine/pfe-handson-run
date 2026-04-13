@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         # 【2】ここにつける ID が、上の outputs の参照先になります
-        id: gen_token_step 
+        id: gen_token_step
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
