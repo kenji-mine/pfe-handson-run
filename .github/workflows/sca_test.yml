@@ -15,6 +15,10 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # 自分のリポジトリと、集計用リポジトリの両方を明記する
+          repositories: |
+            ${{ github.event.repository.name }}
+            test_dashboard
   call-trivy:
     needs: generate-token
     uses: kenji-mine/test_dashboard/.github/workflows/trivy-template.yml@main
