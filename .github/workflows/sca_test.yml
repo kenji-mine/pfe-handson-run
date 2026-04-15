@@ -8,4 +8,5 @@ jobs:
     uses: kenji-mine/test_dashboard/.github/workflows/trivy-template.yml@main
     with:
       sbom_path: 'sbom/sbom.json'
+      assignees: "kenji-mine"
     secrets: inherit
