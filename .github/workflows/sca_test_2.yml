@@ -1,0 +1,12 @@
+name: Clean Grype Scan V3
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-trivy:
+    uses: kenji-mine/test_dashboard/.github/workflows/grype-template.yml@main
+    with:
+      sbom_path: 'sbom/sbom2.json'
+      assignees: 'kenji-mine' # issue起票時のアサイン担当
+    secrets: inherit
